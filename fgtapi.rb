@@ -108,8 +108,7 @@ class FgtApi
         :cookies => @cookies,
         :content_type => :json
     )
-
-
+    
     begin
       return JSON.parse(res.body)
     rescue Exception => e
@@ -119,13 +118,17 @@ class FgtApi
   end
 
 
-
   ########################################################
   # Methods from this point forward are private methods
   ########################################################
   private
   ########################################################
 
+  #####################################################################################
+  ## update_req
+  ##
+  ## ensure that all the right cookies and headers are in the right places
+  #####################################################################################
   def update_req(rescookies)
     begin
       if rescookies['ccsrftoken']
@@ -141,6 +144,11 @@ class FgtApi
     end
   end
 
+  ###################################################################################
+  ## get_url
+  ##
+  ## Put together the totality of the rest-request URL using supplied inputs
+  ###################################################################################
   def get_url(api, path, name, action, mkey)
     begin
       if %w(monitor cmdb).include? api
@@ -157,6 +165,11 @@ class FgtApi
     end
   end
 
+  #####################################################################################
+  ## req_debug
+  ##
+  ## Output formatted debug info for rest-client requests
+  #####################################################################################
   def req_debug(url, cookies, parameters, payload)
     p '---- Pre Request ----'
     p "Req URL: #{url}"
@@ -172,6 +185,11 @@ class FgtApi
     p '---------------------'
   end
 
+  ###################################################################################
+  ## res_debug
+  ##
+  ## Output formatted debuging for rest-client responses
+  ##################################################################################
   def res_debug(res)
     p '----- Req Results ----'
     p "Request Arguments Sent: #{res.args}"
