@@ -16,9 +16,6 @@ class FgtApi
     @cookies = nil
     @headers = nil
 
-    ## Destroy... will finish this later to ensure the connection is logged out from upon instance destruction
-    #ObjectSpace.define_finalizer( self, logout)
-
     ## Initiate Login to FortiGate and get cookies for subsequent queries
     @loginurl = @hosturl + @loginuri
 
@@ -27,7 +24,13 @@ class FgtApi
     end
 
     begin
-      res = RestClient.post @loginurl, {:username => @username,:secretkey => @secretkey}
+      #res = RestClient.post @loginurl, {:username => @username,:secretkey => @secretkey}
+      res = RestClient::Request.execute(
+          :url => @loginurl,
+          :method => :post,
+          :verify_ssl => false,
+          :payload => {:username => @username, :secretkey => @secretkey}
+      )
     rescue Exception => e
       fgt_rescue(e)
       return e
@@ -35,13 +38,22 @@ class FgtApi
 
     if res.cookies['ccsrftoken']
       @connected = true
-      p "Authentication successful"
+      p "Authentication successful" unless @debug == 0
     else
-      p "Error: Authentication failed"
+      p "Error: Authentication failed" unless @debug == 0
 
     end
     res_debug(res) unless @debug == 0
     update_req(res.cookies)
+  end
+
+  # Logout when class is uninstatiated
+  def self.finalize()
+    unless @debug == 0
+      p ""
+      p "Logging out" unless @debug == 0
+      res = RestClient.post @hosturl + '/logout', nil, @headers
+    end
   end
 
   ##############################################################################
@@ -64,20 +76,25 @@ class FgtApi
 
     @headers[:params] = parameters
 
-    case type
-      when 'get', :get
-        reqtype = :get
-      when 'post', :post
-        reqtype = :post
-      when 'put', :put
-        reqtype = :put
-      when 'delete', :delete
-        reqtype = :delete
-      else
-        #raise ArgumentError("invalid argument 'type'.")
-        #fgt_rescue ("")
-        p "ArgumentError: Invalid argument 'type'"
-        return e
+    begin
+      case type
+        when 'get', :get
+          reqtype = :get
+        when 'post', :post
+          reqtype = :post
+        when 'put', :put
+          reqtype = :put
+        when 'delete', :delete
+          reqtype = :delete
+        else
+          raise ArgumentError("invalid argument 'type'.")
+          #fgt_rescue ("")
+          #p "ArgumentError: Invalid argument 'type'"
+          #return "Invalid Argument type"
+    end
+    rescue Exception => e
+      fgt_rescue(e)
+      return e
     end
 
     req_debug(url, @cookies, parameters, payload) unless @debug == 0
@@ -85,16 +102,20 @@ class FgtApi
     res = RestClient::Request.execute(
         :method => reqtype,
         :url => url,
+        :verify_ssl => false,
         :payload => payload.to_json,
         :headers => @headers,
         :cookies => @cookies,
         :content_type => :json
     )
 
-    #res_debug(res) unless @debug == 0
 
-    #update_req(res.cookies)
-    return JSON.parse(res.body)
+    begin
+      return JSON.parse(res.body)
+    rescue Exception => e
+      fgt_rescue(e)
+      return e
+    end
   end
 
 
@@ -107,13 +128,12 @@ class FgtApi
 
   def update_req(rescookies)
     begin
-      if rescookies['ccsrftoken'] && rescookies['APSCOOKIE_9539865664983730253']
+      if rescookies['ccsrftoken']
         @cookies = rescookies
         @headers = {:'X-CSRFTOKEN' => @cookies['ccsrftoken']}
       else
         p "cookies['ccsrftoken']:  #{rescookies['ccsrftoken']}"
-        p "cookies['APSCOOKIE']:  #{rescookies['APSCOOKIE_9539865664983730253']}"
-        raise RuntimeError.new('Response did not include the required cookies "APSCOOKIE" and/or "ccsrftoken"')
+        raise RuntimeError.new('Response did not include the required cookie "ccsrftoken"')
       end
     rescue Exception => e
       fgt_rescue(e)
