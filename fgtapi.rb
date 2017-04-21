@@ -108,7 +108,7 @@ class FgtApi
         :cookies => @cookies,
         :content_type => :json
     )
-    
+
     begin
       return JSON.parse(res.body)
     rescue Exception => e
